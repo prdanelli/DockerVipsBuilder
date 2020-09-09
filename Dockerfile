@@ -3,46 +3,19 @@ FROM debian:buster-slim
 ARG VIPS_VERSION=8.9.1
 ARG VIPS_URL=https://github.com/libvips/libvips/releases/download
 
-# heroku:18 includes some libraries, like tiff and jpeg, as part of the
-# run-time platform, and we want to use those libs if we can
-#
-# see https://devcenter.heroku.com/articles/stack-packages
-#
-# libgsf needs libxml2
-RUN apt-get update \
-	&& \
-	apt-get install -y \
-		build-essential \
-		autoconf \
-		automake \
-		libtool \
-		intltool \
-		gtk-doc-tools \
-		unzip \
-		wget \
-		git \
-		pkg-config \
-		autoconf \
-		libtool \
-		nasm \
-		curl \
-		glib-2.0-dev \
-		libexpat-dev \
-		libpng-dev \
-		libjpeg-dev \
-		liblcms2-dev \
-		libxml2-dev \
-		libfftw3-dev \
-		libglib2.0-dev
+COPY ./Aptfile /tmp/Aptfile
 
-RUN echo 'Install mozjpeg' && \
-    cd /tmp && \
-    git clone git://github.com/mozilla/mozjpeg.git && \
-    cd /tmp/mozjpeg && \
-    git checkout v3.3.1 && \
-    autoreconf -fiv && \
-    ./configure --prefix=/usr && \
-    make install
+RUN apt-get update \
+	&& apt-get install -y $(cat /tmp/Aptfile | xargs)
+
+RUN echo 'Install mozjpeg' \
+	&& cd /tmp \
+    && git clone git://github.com/mozilla/mozjpeg.git \
+    && cd /tmp/mozjpeg \
+    && git checkout v3.3.1 \
+    && autoreconf -fiv \
+    && ./configure --prefix=/usr \
+    && make install
 
 RUN cd /usr/src \
 	&& wget ${VIPS_URL}/v${VIPS_VERSION}/vips-${VIPS_VERSION}.tar.gz \
@@ -65,8 +38,12 @@ RUN echo 'Cleaning up' \
 	&& cd /usr/local \
 	&& tar cfz libvips-dev.tar.gz vips
 
-# ruby-vips needs ffi, and ffi needs the dev headers for ruby
-RUN echo "Testing" && apt-get install -y ruby-dev
+RUN echo "Testing" \
+	&& export LD_LIBRARY_PATH=/usr/local/vips/lib \
+	&& gem install ruby-vips \
+	&& ruby -e 'require "ruby-vips"; puts "success!"'
 
-# test ruby-vips
-RUN export LD_LIBRARY_PATH=/usr/local/vips/lib && gem install ruby-vips && ruby -e 'require "ruby-vips"; puts "success!"'
+# Clean up
+RUN echo 'Cleaning up build tools' \
+	&& apt-get remove -y $(cat /tmp/Aptfile | xargs) \
+	&& apt autoremove -y
