@@ -4,7 +4,7 @@ Minimal VIPS Docker image based on Debian Buster Slim
 ## Usage
 
 ```docker
-FROM prwhitehead/vips-builder:latest as vips-builder
+FROM prdanelli/vips-builder:latest as vips-builder
 
 COPY --from=vips-builder /usr/local/libvips-dev.tar.gz /usr/local/
 ENV VIPSHOME /usr/local/vips
